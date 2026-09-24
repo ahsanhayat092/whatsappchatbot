@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Environment variables & secrets
+.env
+
+# WhatsApp Web session authentication & cache
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Temporary Audio files
+temp_audio/
+
+# System files
+.DS_Store
+*.log
