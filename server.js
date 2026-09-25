@@ -130,20 +130,52 @@ class DashboardServer {
      */
     recordComplaint(c) {
         this.analytics.total++;
-        const typeName = (c.complaintTypeName || '').toLowerCase();
 
-        if (typeName.includes('water')) {
+        const category = String(c.category || '').toUpperCase();
+        const typeName = String(c.complaintTypeName || '').toLowerCase();
+        const subtypeName = String(c.complaintSubtypeName || '').toLowerCase();
+        const typeId = Number(c.complaintTypeId || 0);
+
+        if (
+            category === 'WATER' ||
+            typeName.includes('water') ||
+            subtypeName.includes('water') ||
+            subtypeName.includes('pipe') ||
+            subtypeName.includes('shortage') ||
+            subtypeName.includes('contamination') ||
+            subtypeName.includes('leakage')
+        ) {
             this.analytics.water++;
-        } else if (typeName.includes('sewer')) {
+        } else if (
+            category === 'SEWER' ||
+            typeName.includes('sewer') ||
+            subtypeName.includes('sewer') ||
+            subtypeName.includes('blockage') ||
+            subtypeName.includes('overflow') ||
+            subtypeName.includes('manhole') ||
+            subtypeName.includes('ponding') ||
+            subtypeName.includes('drain')
+        ) {
             this.analytics.sewer++;
-        } else {
+        } else if (
+            category === 'REVENUE' ||
+            typeId === 1 ||
+            typeName.includes('revenue') ||
+            typeName.includes('bill') ||
+            subtypeName.includes('bill') ||
+            subtypeName.includes('meter')
+        ) {
             this.analytics.revenue++;
+        } else {
+            // Default fallback if category cannot be inferred
+            this.analytics.water++;
         }
 
         const city = c.cityName || 'Lahore';
         this.analytics.cities[city] = (this.analytics.cities[city] || 0) + 1;
 
-        this.addLog('COMPLAINT', `New Ticket #${c.complaintId} registered for ${city} (${c.complaintSubtypeName || 'Complaint'})`);
+        const ticketSubtype = c.complaintSubtypeName || c.complaintTypeName || 'Complaint';
+        this.addLog('COMPLAINT', `New Ticket #${c.complaintId || 'Registered'} registered for ${city} (${ticketSubtype})`);
 
         this.broadcast('ANALYTICS_UPDATE', {
             analytics: this.analytics

@@ -622,7 +622,13 @@ _(Type *back* to go back, *home* for Main Menu)_`
                 const createRes = await cmsApi.createComplaint(payload, imageBuffer, imageName);
 
                 if (createRes.success && createRes.data) {
-                    const c = createRes.data;
+                    const c = {
+                        ...createRes.data,
+                        category: session.data.category || (session.data.complaintTypeId === 1 ? 'REVENUE' : 'WATER'),
+                        complaintTypeName: createRes.data.complaintTypeName || session.data.complaintTypeName,
+                        complaintSubtypeName: createRes.data.complaintSubtypeName || session.data.complaintSubtypeName,
+                        cityName: createRes.data.cityName || session.data.cityName
+                    };
                     dashboard.recordComplaint(c);
                     const confirmationMsg = 
 `✅ *COMPLAINT REGISTERED SUCCESSFULLY!*
