@@ -155,6 +155,38 @@ _(Type *back* to go back, *home* for Main Menu)_`;
     await sendReply(msg, promptText);
 }
 
+// Render Account Number Prompt (Mandatory for Lahore, Optional for Other Cities)
+async function renderAccountNoPrompt(msg, sender, customMsg = null) {
+    if (customMsg) {
+        await sendReply(msg, customMsg);
+        return;
+    }
+    const session = getSession(sender);
+    const cityName = session.data.cityName || 'Lahore';
+    const isLahore = cityName.toLowerCase().includes('lahore') || session.data.cityId === 1;
+
+    if (isLahore) {
+        const text = 
+`💳 *WASA Consumer Account Number (Mandatory for Lahore)*
+
+Please enter your WASA Lahore Consumer/Account Number (e.g., \`1234567\` or \`ACC-2024-001234\`):
+
+⚠️ *Note:* Account Number is required for Lahore complaints to verify your consumer record.
+_(Type *back* to go back, *home* for Main Menu)_`;
+        await sendReply(msg, text);
+    } else {
+        const text = 
+`💳 *Consumer Account Number (Optional for ${cityName})*
+
+Do you have a WASA Consumer/Account Number for ${cityName}? 
+(e.g., \`ACC-2024-001234\` or \`1234567\`)
+
+_Reply with your Account Number, or send *skip* if you don't have one._
+_(Type *back* to go back, *home* for Main Menu)_`;
+        await sendReply(msg, text);
+    }
+}
+
 // Display QR Code & Update Dashboard
 client.on('qr', (qr) => {
     console.log('\n📲 SCAN THIS QR CODE WITH YOUR WHATSAPP APP:\n');
@@ -435,15 +467,7 @@ _Type *home* or *menu* to return to the main menu._`;
                 }
 
                 navigateTo(sender, 'ENTER_ACCOUNT_NO');
-                await sendReply(msg, 
-`💳 *Consumer Account Number*
-
-Do you have a WASA Consumer/Account Number? 
-(e.g., \`ACC-2024-001234\` or \`1234567\`)
-
-_Reply with your Account Number, or send *skip* if you don't have one._
-_(Type *back* to go back, *home* for Main Menu)_`
-                );
+                await renderAccountNoPrompt(msg, sender);
                 break;
 
             case 'SELECT_CITY_MATCH':
@@ -458,23 +482,24 @@ _(Type *back* to go back, *home* for Main Menu)_`
                 await sendReply(msg, `✅ *City Selected:* ${chosenMatch.name}`);
 
                 navigateTo(sender, 'ENTER_ACCOUNT_NO');
-                await sendReply(msg, 
-`💳 *Consumer Account Number*
-
-Do you have a WASA Consumer/Account Number? 
-(e.g., \`ACC-2024-001234\` or \`1234567\`)
-
-_Reply with your Account Number, or send *skip* if you don't have one._
-_(Type *back* to go back, *home* for Main Menu)_`
-                );
+                await renderAccountNoPrompt(msg, sender);
                 break;
 
             case 'ENTER_ACCOUNT_NO':
                 const selectedCityId = session.data.cityId || 1;
-                
-                if (text !== 'skip' && text !== 'no' && body.length > 2) {
+                const cityName = session.data.cityName || 'Lahore';
+                const isLahore = cityName.toLowerCase().includes('lahore') || selectedCityId === 1;
+
+                if (text === 'skip' || text === 'no' || text === 'none') {
+                    if (isLahore) {
+                        await sendReply(msg, `⚠️ *Account Number is Mandatory for ${cityName} complaints!*\n\nPlease enter your valid WASA Lahore Consumer/Account Number (e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                        return;
+                    } else {
+                        session.data.accountNo = null;
+                    }
+                } else if (body.length > 2) {
                     session.data.accountNo = body;
-                    await sendReply(msg, `⏳ Looking up consumer details in ${session.data.cityName || 'City'}...`);
+                    await sendReply(msg, `⏳ Looking up consumer details for Account #${body} in ${cityName}...`);
                     const lookupRes = await cmsApi.lookupConsumer(selectedCityId, body);
 
                     if (lookupRes.success && lookupRes.data && lookupRes.data.consumerFound) {
@@ -486,10 +511,20 @@ _(Type *back* to go back, *home* for Main Menu)_`
 
                         await sendReply(msg, `✅ *Account Verified!*\n\n👤 *Name:* ${cons.consumerName}\n📍 *Address:* ${cons.consumerAddress}`);
                     } else {
-                        await sendReply(msg, 'ℹ️ Account number noted.');
+                        if (isLahore) {
+                            await sendReply(msg, `❌ *Account Number "${body}" Not Found in WASA ${cityName} Records!*\n\nPlease check your WASA bill and enter your Consumer/Account Number again:\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                            return;
+                        } else {
+                            await sendReply(msg, 'ℹ️ Account number noted.');
+                        }
                     }
                 } else {
-                    session.data.accountNo = null;
+                    if (isLahore) {
+                        await sendReply(msg, `⚠️ *Invalid Account Number!*\n\nPlease enter a valid WASA Lahore Consumer/Account Number (e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                        return;
+                    } else {
+                        session.data.accountNo = null;
+                    }
                 }
 
                 if (!session.data.mobile) {
@@ -497,7 +532,7 @@ _(Type *back* to go back, *home* for Main Menu)_`
                     await sendReply(msg, '📱 *Contact Mobile Number*\n\nPlease enter your contact phone number (e.g. `03001234567`):\n\n_(Type *back* to go back, *home* for Main Menu)_');
                 } else if (session.data.complainantName) {
                     navigateTo(sender, 'ENTER_DETAILS');
-                    await sendReply(msg, `📝 *Complaint Description*\n\nPlease describe the problem details (or send a Voice Note 🎙️):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                    await sendReply(msg, `📝 *Complaint Description*\n\nPlease describe the problem details (minimum 10 characters):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
                 } else {
                     navigateTo(sender, 'ENTER_NAME');
                     await sendReply(msg, '👤 *Please enter your Full Name:*\n\n_(Type *back* to go back, *home* for Main Menu)_');
@@ -756,7 +791,7 @@ async function renderStepPrompt(msg, sender) {
             await renderCityPrompt(msg);
             break;
         case 'ENTER_ACCOUNT_NO':
-            await sendReply(msg, `💳 *Consumer Account Number*\n\nDo you have a WASA Account Number? Send Account No or *skip*.\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+            await renderAccountNoPrompt(msg, sender);
             break;
         case 'ENTER_MOBILE':
             await sendReply(msg, `📱 *Contact Mobile Number*\n\nPlease enter your contact phone number (e.g. \`03001234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
