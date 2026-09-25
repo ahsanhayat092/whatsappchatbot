@@ -169,7 +169,7 @@ async function renderAccountNoPrompt(msg, sender, customMsg = null) {
         const text = 
 `💳 *WASA Consumer Account Number (Mandatory for Lahore)*
 
-Please enter your WASA Lahore Consumer/Account Number (e.g., \`1234567\` or \`ACC-2024-001234\`):
+Please enter your WASA Lahore Consumer/Account Number (numbers only, up to 10 digits, e.g., \`1234567\`):
 
 ⚠️ *Note:* Account Number is required for Lahore complaints to verify your consumer record.
 _(Type *back* to go back, *home* for Main Menu)_`;
@@ -179,7 +179,7 @@ _(Type *back* to go back, *home* for Main Menu)_`;
 `💳 *Consumer Account Number (Optional for ${cityName})*
 
 Do you have a WASA Consumer/Account Number for ${cityName}? 
-(e.g., \`ACC-2024-001234\` or \`1234567\`)
+(numbers only, up to 10 digits, e.g., \`1234567\`)
 
 _Reply with your Account Number, or send *skip* if you don't have one._
 _(Type *back* to go back, *home* for Main Menu)_`;
@@ -492,15 +492,23 @@ _Type *home* or *menu* to return to the main menu._`;
 
                 if (text === 'skip' || text === 'no' || text === 'none') {
                     if (isLahore) {
-                        await sendReply(msg, `⚠️ *Account Number is Mandatory for ${cityName} complaints!*\n\nPlease enter your valid WASA Lahore Consumer/Account Number (e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                        await sendReply(msg, `⚠️ *Account Number is Mandatory for ${cityName} complaints!*\n\nPlease enter your valid WASA Lahore Consumer/Account Number (numbers only, up to 10 digits, e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
                         return;
                     } else {
                         session.data.accountNo = null;
                     }
-                } else if (body.length > 2) {
-                    session.data.accountNo = body;
-                    await sendReply(msg, `⏳ Looking up consumer details for Account #${body} in ${cityName}...`);
-                    const lookupRes = await cmsApi.lookupConsumer(selectedCityId, body);
+                } else {
+                    // Extract digits only and validate format (numbers only, max 10 digits)
+                    const cleanedAccount = body.replace(/[^0-9]/g, '');
+
+                    if (!/^\d{1,10}$/.test(cleanedAccount) || /[a-zA-Z]/.test(body)) {
+                        await sendReply(msg, `⚠️ *Invalid Account Number Format!*\n\nAccount Number must contain **numbers only** (up to 10 digits maximum, e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                        return;
+                    }
+
+                    session.data.accountNo = cleanedAccount;
+                    await sendReply(msg, `⏳ Looking up consumer details for Account #${cleanedAccount} in ${cityName}...`);
+                    const lookupRes = await cmsApi.lookupConsumer(selectedCityId, cleanedAccount);
 
                     if (lookupRes.success && lookupRes.data && lookupRes.data.consumerFound) {
                         const cons = lookupRes.data;
@@ -512,18 +520,11 @@ _Type *home* or *menu* to return to the main menu._`;
                         await sendReply(msg, `✅ *Account Verified!*\n\n👤 *Name:* ${cons.consumerName}\n📍 *Address:* ${cons.consumerAddress}`);
                     } else {
                         if (isLahore) {
-                            await sendReply(msg, `❌ *Account Number "${body}" Not Found in WASA ${cityName} Records!*\n\nPlease check your WASA bill and enter your Consumer/Account Number again:\n\n_(Type *back* to go back, *home* for Main Menu)_`);
+                            await sendReply(msg, `❌ *Account Number "${cleanedAccount}" Not Found in WASA ${cityName} Records!*\n\nPlease check your WASA bill and enter your Consumer/Account Number again (up to 10 digits):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
                             return;
                         } else {
                             await sendReply(msg, 'ℹ️ Account number noted.');
                         }
-                    }
-                } else {
-                    if (isLahore) {
-                        await sendReply(msg, `⚠️ *Invalid Account Number!*\n\nPlease enter a valid WASA Lahore Consumer/Account Number (e.g., \`1234567\`):\n\n_(Type *back* to go back, *home* for Main Menu)_`);
-                        return;
-                    } else {
-                        session.data.accountNo = null;
                     }
                 }
 
