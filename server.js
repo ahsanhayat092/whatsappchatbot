@@ -170,7 +170,22 @@ class DashboardServer {
     }
 
     start() {
+        if (this.isListening) return;
+
+        this.server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.warn(`⚠️ Port ${this.port} is already in use by another process. Trying port ${this.port + 1}...`);
+                this.port++;
+                setTimeout(() => {
+                    this.server.listen(this.port);
+                }, 500);
+            } else {
+                console.error('⚠️ Dashboard server error:', err.message);
+            }
+        });
+
         this.server.listen(this.port, () => {
+            this.isListening = true;
             console.log(`\n==================================================`);
             console.log(`🖥️  WEB ADMIN DASHBOARD IS RUNNING!`);
             console.log(`👉 Open in your browser: http://localhost:${this.port}/`);
