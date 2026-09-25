@@ -38,15 +38,16 @@ class DashboardServer {
 
         // API Endpoint: Admin Login
         this.app.post('/api/admin/login', (req, res) => {
-            const { password } = req.body || {};
+            const { username, password } = req.body || {};
+            const expectedUser = process.env.DASHBOARD_USERNAME || 'admin';
             const expectedPass = process.env.DASHBOARD_PASSWORD || 'WasaAdmin2026!';
 
-            if (password === expectedPass) {
-                this.addLog('INFO', 'Successful Admin Dashboard Login');
+            if (username === expectedUser && password === expectedPass) {
+                this.addLog('INFO', `Successful Admin Dashboard Login (${username})`);
                 return res.json({ success: true, token: this.adminToken, message: 'Authenticated successfully' });
             } else {
-                this.addLog('WARN', 'Failed Admin Dashboard Login attempt');
-                return res.status(401).json({ success: false, message: 'Invalid Admin Password' });
+                this.addLog('WARN', `Failed Admin Dashboard Login attempt for user: "${username || 'blank'}"`);
+                return res.status(401).json({ success: false, message: 'Invalid Admin Username or Password' });
             }
         });
 

@@ -518,11 +518,14 @@
             <div class="login-header">
                 <div class="login-icon">🔒</div>
                 <h2>Punjab WASA Admin Login</h2>
-                <p>Enter Master Admin Password to Access Portal</p>
+                <p>Enter Admin Credentials to Access Portal</p>
             </div>
             <form onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <input type="password" id="loginPassword" placeholder="Enter Admin Password..." required autofocus>
+                    <input type="text" id="loginUsername" placeholder="Username (default: admin)..." required autofocus autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" id="loginPassword" placeholder="Password..." required autocomplete="current-password">
                 </div>
                 <div id="loginError" class="login-error" style="display: none;"></div>
                 <button type="submit" class="btn-primary">
@@ -542,6 +545,7 @@
 
         async function handleLogin(e) {
             e.preventDefault();
+            const user = document.getElementById('loginUsername').value;
             const pass = document.getElementById('loginPassword').value;
             const errDiv = document.getElementById('loginError');
             errDiv.style.display = 'none';
@@ -550,7 +554,7 @@
                 const res = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: pass })
+                    body: JSON.stringify({ username: user, password: pass })
                 });
 
                 const data = await res.json();
@@ -560,7 +564,7 @@
                     document.getElementById('loginModal').style.display = 'none';
                     connectWebSocket();
                 } else {
-                    errDiv.innerText = data.message || 'Invalid Admin Password';
+                    errDiv.innerText = data.message || 'Invalid Username or Password';
                     errDiv.style.display = 'block';
                 }
             } catch (err) {
