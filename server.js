@@ -27,16 +27,43 @@ class DashboardServer {
         this.logs = [];
         this.onResetSessionCallback = null;
 
+        this.adminToken = 'wasa_token_' + Math.random().toString(36).substring(2, 15);
+
         this.initExpress();
         this.initWebSockets();
     }
 
     initExpress() {
         this.app.use(express.json());
+
+        // API Endpoint: Admin Login
+        this.app.post('/api/admin/login', (req, res) => {
+            const { password } = req.body || {};
+            const expectedPass = process.env.DASHBOARD_PASSWORD || 'WasaAdmin2026!';
+
+            if (password === expectedPass) {
+                this.addLog('INFO', 'Successful Admin Dashboard Login');
+                return res.json({ success: true, token: this.adminToken, message: 'Authenticated successfully' });
+            } else {
+                this.addLog('WARN', 'Failed Admin Dashboard Login attempt');
+                return res.status(401).json({ success: false, message: 'Invalid Admin Password' });
+            }
+        });
+
+        // Authentication Middleware
+        const requireAuth = (req, res, next) => {
+            const token = req.headers['x-admin-token'] || req.query.token;
+            if (token && token === this.adminToken) {
+                return next();
+            }
+            return res.status(401).json({ success: false, message: 'Unauthorized. Admin authentication required.' });
+        };
+
+        // Serve Static Frontend Assets
         this.app.use(express.static(path.join(__dirname, 'public')));
 
-        // API Endpoint: Get Current State
-        this.app.get('/api/admin/state', (req, res) => {
+        // Protected API Endpoint: Get Current State
+        this.app.get('/api/admin/state', requireAuth, (req, res) => {
             res.json({
                 status: this.botStatus,
                 qrDataUrl: this.qrDataUrl,
@@ -47,9 +74,9 @@ class DashboardServer {
             });
         });
 
-        // API Endpoint: Force Reset Session
-        this.app.post('/api/admin/reset-session', (req, res) => {
-            this.addLog('WARN', 'Admin requested Session Reset from Web Dashboard');
+        // Protected API Endpoint: Force Reset Session
+        this.app.post('/api/admin/reset-session', requireAuth, (req, res) => {
+            this.addLog('WARN', 'Authenticated Admin requested Session Reset from Web Dashboard');
             if (this.onResetSessionCallback) {
                 this.onResetSessionCallback();
             }
@@ -58,8 +85,21 @@ class DashboardServer {
     }
 
     initWebSockets() {
-        this.wss.on('connection', (ws) => {
-            console.log('🌐 Web Dashboard connected via WebSocket');
+        this.wss.on('connection', (ws, req) => {
+            let token = null;
+            try {
+                const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+                token = url.searchParams.get('token');
+            } catch (e) {}
+
+            if (!token || token !== this.adminToken) {
+                console.warn('⚠️ Rejected unauthorized WebSocket connection attempt');
+                ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized. Admin authentication required.' }));
+                ws.close(4001, 'Unauthorized');
+                return;
+            }
+
+            console.log('🌐 Web Dashboard connected via authenticated WebSocket');
 
             // Send initial state on connection
             ws.send(JSON.stringify({

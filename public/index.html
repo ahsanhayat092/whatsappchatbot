@@ -304,13 +304,116 @@
         .log-level.SUCCESS { color: var(--accent-green); }
         .log-level.COMPLAINT { color: #a855f7; }
 
-        @media (max-width: 960px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Login Modal Overlay */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 8, 17, 0.88);
+            backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: #111827;
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 36px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+
+        .login-header {
+            margin-bottom: 24px;
+        }
+
+        .login-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .login-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .login-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+        }
+
+        .login-error {
+            color: var(--accent-red);
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            color: #050811;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(0, 242, 254, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 242, 254, 0.4);
+        }
+
+        .login-footer {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -325,8 +428,11 @@
                     <p>Live Session Manager, Real-time Analytics & API Monitoring</p>
                 </div>
             </div>
-            <div class="api-badge">
-                🌐 https://cms-pwasa.wasalhr.pk/api
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="api-badge">
+                    🌐 https://cms-pwasa.wasalhr.pk/api
+                </div>
+                <button class="btn-logout" onclick="handleLogout()">🔒 Logout</button>
             </div>
         </header>
 
@@ -406,30 +512,108 @@
         </div>
     </div>
 
+    <!-- Login Modal Container -->
+    <div id="loginModal" class="login-overlay" style="display: flex;">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">🔒</div>
+                <h2>Punjab WASA Admin Login</h2>
+                <p>Enter Master Admin Password to Access Portal</p>
+            </div>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <input type="password" id="loginPassword" placeholder="Enter Admin Password..." required autofocus>
+                </div>
+                <div id="loginError" class="login-error" style="display: none;"></div>
+                <button type="submit" class="btn-primary">
+                    🔓 Unlock WASA Admin Portal
+                </button>
+            </form>
+            <div class="login-footer">Protected System • Credentials configured in server .env</div>
+        </div>
+    </div>
+
     <!-- Frontend Script -->
     <script>
         let ws;
         let uptimeTimer;
         let uptimeSeconds = 0;
+        let adminToken = localStorage.getItem('wasa_admin_token') || null;
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('loginPassword').value;
+            const errDiv = document.getElementById('loginError');
+            errDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success && data.token) {
+                    adminToken = data.token;
+                    localStorage.setItem('wasa_admin_token', adminToken);
+                    document.getElementById('loginModal').style.display = 'none';
+                    connectWebSocket();
+                } else {
+                    errDiv.innerText = data.message || 'Invalid Admin Password';
+                    errDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errDiv.innerText = 'Connection error: ' + err.message;
+                errDiv.style.display = 'block';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('wasa_admin_token');
+            adminToken = null;
+            if (ws) {
+                try { ws.close(); } catch(e){}
+            }
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('loginPassword').value = '';
+        }
 
         function connectWebSocket() {
+            if (!adminToken) {
+                document.getElementById('loginModal').style.display = 'flex';
+                return;
+            }
+
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}`;
+            const wsUrl = `${protocol}//${window.location.host}?token=${encodeURIComponent(adminToken)}`;
 
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                console.log('Connected to WebSocket server');
+                console.log('Connected to authenticated WebSocket server');
+                document.getElementById('loginModal').style.display = 'none';
             };
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                if (data.type === 'ERROR') {
+                    console.warn(data.message);
+                    handleLogout();
+                    return;
+                }
                 handleWSMessage(data);
             };
 
-            ws.onclose = () => {
-                console.warn('WebSocket closed. Reconnecting in 3s...');
-                setTimeout(connectWebSocket, 3000);
+            ws.onclose = (event) => {
+                if (event.code === 4001) {
+                    console.warn('Unauthorized WebSocket connection');
+                    handleLogout();
+                    return;
+                }
+                setTimeout(() => {
+                    if (adminToken) connectWebSocket();
+                }, 3000);
             };
         }
 
@@ -544,8 +728,18 @@
         async function resetSession() {
             if (!confirm('Are you sure you want to force reset the WhatsApp session and generate a new QR Code?')) return;
             try {
-                const res = await fetch('/api/admin/reset-session', { method: 'POST' });
+                const res = await fetch('/api/admin/reset-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken || ''
+                    }
+                });
                 const data = await res.json();
+                if (res.status === 401) {
+                    handleLogout();
+                    return;
+                }
                 alert(data.message || 'Reset initiated');
             } catch (err) {
                 alert('Error resetting session: ' + err.message);
