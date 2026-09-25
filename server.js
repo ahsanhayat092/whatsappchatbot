@@ -28,6 +28,20 @@ class DashboardServer {
         this.onResetSessionCallback = null;
 
         this.adminToken = 'wasa_token_' + Math.random().toString(36).substring(2, 15);
+        this.isListening = false;
+
+        this.server.on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.warn(`⚠️ Port ${this.port} is already in use. Retrying on port ${this.port + 1}...`);
+                this.port++;
+                this.isListening = false;
+                setTimeout(() => {
+                    this.start();
+                }, 300);
+            } else {
+                console.error('⚠️ Dashboard server error:', err.message);
+            }
+        });
 
         this.initExpress();
         this.initWebSockets();
@@ -212,21 +226,9 @@ class DashboardServer {
 
     start() {
         if (this.isListening) return;
-
-        this.server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                console.warn(`⚠️ Port ${this.port} is already in use by another process. Trying port ${this.port + 1}...`);
-                this.port++;
-                setTimeout(() => {
-                    this.server.listen(this.port);
-                }, 500);
-            } else {
-                console.error('⚠️ Dashboard server error:', err.message);
-            }
-        });
+        this.isListening = true;
 
         this.server.listen(this.port, () => {
-            this.isListening = true;
             console.log(`\n==================================================`);
             console.log(`🖥️  WEB ADMIN DASHBOARD IS RUNNING!`);
             console.log(`👉 Open in your browser: http://localhost:${this.port}/`);
