@@ -3,6 +3,10 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const cmsApi = require('./api');
 const voiceTranscriber = require('./voice_transcriber');
+const dashboard = require('./server');
+
+// Start Web Admin Dashboard Server
+dashboard.start();
 
 console.log('🚀 Initializing Punjab WASA WhatsApp Bot...');
 
@@ -151,28 +155,48 @@ _(Type *back* to go back, *home* for Main Menu)_`;
     await sendReply(msg, promptText);
 }
 
-// Display QR Code
+// Display QR Code & Update Dashboard
 client.on('qr', (qr) => {
     console.log('\n📲 SCAN THIS QR CODE WITH YOUR WHATSAPP APP:\n');
     qrcode.generate(qr, { small: true });
     console.log('\nInstructions: Open WhatsApp -> Settings / Menu -> Linked Devices -> Link a Device.\n');
+    dashboard.updateQR(qr);
 });
 
 client.on('authenticated', () => {
     console.log('✅ Authentication successful!');
+    dashboard.addLog('SUCCESS', 'WhatsApp session authenticated successfully');
 });
 
 client.on('ready', () => {
     if (!isClientReady) {
         isClientReady = true;
+        const phone = client.info?.wid?.user ? `+${client.info.wid.user}` : null;
         console.log('🎉 Punjab CMS WhatsApp Bot is ONLINE and ready!');
+        dashboard.updateStatus('ONLINE', phone);
     }
 });
 
 client.on('disconnected', (reason) => {
     isClientReady = false;
     console.log('⚠️ Client was disconnected:', reason);
+    dashboard.updateStatus('DISCONNECTED');
 });
+
+// Admin Reset Session Callback
+dashboard.onResetSessionCallback = async () => {
+    try {
+        console.log('🔄 Admin requested session reset from Web Dashboard...');
+        dashboard.addLog('WARN', 'Initiating session logout & fresh initialization');
+        await client.logout();
+    } catch (err) {
+        console.warn('Logout error (session may already be cleared):', err.message);
+    }
+    try {
+        await client.destroy();
+    } catch (err) {}
+    client.initialize();
+};
 
 client.on('message', async (msg) => {
     if (!msg || msg.isStatus || msg.from === 'status@broadcast') return;
@@ -599,6 +623,7 @@ _(Type *back* to go back, *home* for Main Menu)_`
 
                 if (createRes.success && createRes.data) {
                     const c = createRes.data;
+                    dashboard.recordComplaint(c);
                     const confirmationMsg = 
 `✅ *COMPLAINT REGISTERED SUCCESSFULLY!*
 
