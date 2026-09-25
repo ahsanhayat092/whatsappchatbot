@@ -19,8 +19,7 @@ class DashboardServer {
 
         this.analytics = {
             total: 0,
-            water: 0,
-            sewer: 0,
+            operations: 0,
             revenue: 0,
             cities: {}
         };
@@ -133,42 +132,13 @@ class DashboardServer {
 
         const category = String(c.category || '').toUpperCase();
         const typeName = String(c.complaintTypeName || '').toLowerCase();
-        const subtypeName = String(c.complaintSubtypeName || '').toLowerCase();
         const typeId = Number(c.complaintTypeId || 0);
 
-        if (
-            category === 'WATER' ||
-            typeName.includes('water') ||
-            subtypeName.includes('water') ||
-            subtypeName.includes('pipe') ||
-            subtypeName.includes('shortage') ||
-            subtypeName.includes('contamination') ||
-            subtypeName.includes('leakage')
-        ) {
-            this.analytics.water++;
-        } else if (
-            category === 'SEWER' ||
-            typeName.includes('sewer') ||
-            subtypeName.includes('sewer') ||
-            subtypeName.includes('blockage') ||
-            subtypeName.includes('overflow') ||
-            subtypeName.includes('manhole') ||
-            subtypeName.includes('ponding') ||
-            subtypeName.includes('drain')
-        ) {
-            this.analytics.sewer++;
-        } else if (
-            category === 'REVENUE' ||
-            typeId === 1 ||
-            typeName.includes('revenue') ||
-            typeName.includes('bill') ||
-            subtypeName.includes('bill') ||
-            subtypeName.includes('meter')
-        ) {
+        if (typeId === 1 || category === 'REVENUE' || typeName.includes('revenue') || typeName.includes('bill')) {
             this.analytics.revenue++;
         } else {
-            // Default fallback if category cannot be inferred
-            this.analytics.water++;
+            // All water supply & sewerage complaints fall under Operations (complaintTypeId = 2)
+            this.analytics.operations++;
         }
 
         const city = c.cityName || 'Lahore';

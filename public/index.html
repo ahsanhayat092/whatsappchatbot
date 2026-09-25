@@ -231,7 +231,7 @@
         /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -377,15 +377,11 @@
                         <div id="valTotal" class="stat-val blue">0</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Water Supply</div>
-                        <div id="valWater" class="stat-val green">0</div>
+                        <div class="stat-label">Operations</div>
+                        <div id="valOperations" class="stat-val green">0</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Sewerage Issues</div>
-                        <div id="valSewer" class="stat-val amber">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Billing & Revenue</div>
+                        <div class="stat-label">Revenue</div>
                         <div id="valRevenue" class="stat-val purple">0</div>
                     </div>
                 </div>
@@ -502,8 +498,7 @@
         function renderAnalytics(analytics) {
             if (!analytics) return;
             document.getElementById('valTotal').innerText = analytics.total || 0;
-            document.getElementById('valWater').innerText = analytics.water || 0;
-            document.getElementById('valSewer').innerText = analytics.sewer || 0;
+            document.getElementById('valOperations').innerText = analytics.operations || 0;
             document.getElementById('valRevenue').innerText = analytics.revenue || 0;
 
             const citiesBox = document.getElementById('citiesBox');
